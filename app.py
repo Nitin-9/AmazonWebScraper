@@ -1,11 +1,27 @@
 import os
 
-from flask import Flask, render_template, request,jsonify
+from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS,cross_origin
 import requests
 from bs4 import BeautifulSoup as bs
 from urllib.request import urlopen as uReq
+from selenium import webdriver
 
+# # Set up the webdriver (make sure you have the appropriate driver installed)
+# driver = webdriver.Chrome()
+#
+# # Navigate to the page
+# driver.get("https://www.amazon.in")
+#
+# # Find the element containing the pseudo-element content
+# element = driver.find_element_by_css_selector(".your-element::before")
+#
+# # Extract the text content
+# content = element.get_attribute("content")
+#
+#
+# # Close the browser
+# driver.quit()
 app = Flask(__name__)
 @app.route('/', methods = ['GET'])
 @cross_origin()
@@ -18,18 +34,23 @@ def index():
         try:
             searchString = request.form['content'].replace(" ", "")
             amazon_url = "https://www.amazon.in/s?k=" + searchString
-            uClient = uReq(amazon_url)
-            amazonPage = uClient.read()
-            uClient.close()
-            amazon_html = bs(amazonPage,"html.parser")
-            bigBoxes = amazon_html.findAll("div",{"class": "puisg-col-inner"})
-            del bigBoxes[0:2]
-            box = bigBoxes[0]
-            productLink = "https://www.amazon.in" + bigBoxes.div.div.div.h2.a['href']
+            # uClient = uReq(amazon_url)
+            # amazonPage = uClient.read()
+            # uClient.close()
+            amazonPage = requests.get(amazon_url)
+            amazonPage.encoding = 'utf-8'
+            amazon_html = bs(amazonPage.text,"html.parser")
+            link = amazon_html.findAll("a", {"class": "a-link-normal s-underline-text s-underline-link-text s-link-style a-text-normal"})
+            # del bigBoxes[0:2]
+            # box = bigBoxes[0]
+
+            hrefLink = link[2].get("href")
+            productLink = "https://www.amazon.in" + hrefLink
+            #productLink = productLinkPath.div.div.div.h2.a['href']
             prodRes = requests.get(productLink)
             prodRes.encoding ='utf-8'
             prod_html = bs(prodRes.text, "html.parser")
-            commentBoxes = prod_html.findAll("div",{"class": "a-section review aok-relative"})
+            commentBoxes = prod_html.findAll("div", {"class": "a-section review aok-relative"})
 
             filename = searchString + ".csv"
             fw = open(filename, "w")
@@ -38,23 +59,24 @@ def index():
             reviews = []
             for commentBox in commentBoxes:
                 try:
-                    name = commentBoxes.div.div.div.a.div[1].findall("span", {"class": "a-profile-name"})[0].text
+                    name = commentBox.find("span", attrs={"class": "a-profile-name"}).text
+
 
                 except:
                     name = 'No Name'
 
                 try:
-                    rating = commentBoxes.div.div.div[1].a.i.findall("span", {"class": "a-icon-alt"}).text
+                    rating = commentBox.find("span", {"class": "a-icon-alt"}).text
                 except:
                     rating = 'No Rating'
 
                 try:
-                    commentHead = commentBoxes.div.div.div[1].a.span[1].text
+                    commentHead = (commentBox.find("a", attrs={"class":"a-size-base a-link-normal review-title a-color-base review-title-content a-text-bold"})).find("span",{"class":""}).text
                 except:
                     commentHead = 'No Comment Head'
 
                 try:
-                    custComment = commentBoxes.div.div.div[3].span.div.div.span.text
+                    custComment = (commentBox.find("div", {"class":"a-row a-spacing-small review-data"})).span.span.text
 
                 except Exception as e:
                     print("Exception while creating dictionary: ", e)
@@ -63,7 +85,7 @@ def index():
                           "Comment": custComment}
 
                 reviews.append(mydict)
-            return render_template('result.html', reviews=reviews[0:(len(reviews)-1)])
+            return render_template('results.html', reviews=reviews[0:(len(reviews)-1)])
         except Exception as e:
             print('The Exception message is: ',e)
             return 'something is wrong'
