@@ -4,6 +4,8 @@ from flask import Flask, render_template, request, jsonify
 from flask_cors import CORS,cross_origin
 import requests
 from bs4 import BeautifulSoup as bs
+import pandas as pd
+import csv
 from urllib.request import urlopen as uReq
 from selenium import webdriver
 
@@ -60,8 +62,6 @@ def index():
             for commentBox in commentBoxes:
                 try:
                     name = commentBox.find("span", attrs={"class": "a-profile-name"}).text
-
-
                 except:
                     name = 'No Name'
 
@@ -77,7 +77,6 @@ def index():
 
                 try:
                     custComment = (commentBox.find("div", {"class":"a-row a-spacing-small review-data"})).span.span.text
-
                 except Exception as e:
                     print("Exception while creating dictionary: ", e)
 
@@ -85,6 +84,11 @@ def index():
                           "Comment": custComment}
 
                 reviews.append(mydict)
+            keys = reviews[0].keys()
+            with open(filename, 'w', encoding='utf-8') as output_file:
+                dict_writer = csv.DictWriter(output_file, keys)
+                dict_writer.writeheader()
+                dict_writer.writerows(reviews)
             return render_template('results.html', reviews=reviews[0:(len(reviews)-1)])
         except Exception as e:
             print('The Exception message is: ',e)

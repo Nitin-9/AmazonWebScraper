@@ -17,3 +17,5 @@ urllib3==1.25.10
 Werkzeug==1.0.1
 pymongo
 selenium==3.141.0
+pandas
+
